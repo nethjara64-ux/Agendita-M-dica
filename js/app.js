@@ -136,7 +136,7 @@ function renderToday() {
   const now = new Date();
   const nowMins = now.getHours()*60 + now.getMinutes();
   let doses = [];
-  meds.filter(m => m.active).forEach(med => {
+    meds.filter(m => m.active && m.profileId === activeProfileId).forEach(med => {
     med.times.forEach(t => {
       const [h,min] = t.split(":").map(Number);
       const tMins = h*60+min;
@@ -236,7 +236,12 @@ function renderMeds() {
     el.innerHTML = `<div class="empty"><div class="empty-icon">💊</div><h3>Sin medicamentos</h3><p>Agrega tu primer medicamento para comenzar</p></div>`;
     return;
   }
-  el.innerHTML = meds.map(med => `
+ const filteredMeds = meds.filter(m => m.profileId === activeProfileId);
+if (!filteredMeds.length) {
+  el.innerHTML = `<div class="empty"><div class="empty-icon">💊</div><h3>Sin medicamentos</h3><p>Agrega medicamentos para ${profiles.find(p=>p.id===activeProfileId)?.name||"este paciente"}</p></div>`;
+  return;
+}
+el.innerHTML = filteredMeds.map(med => `
     <div class="med-card">
       <div class="med-icon c-${med.color}">${med.emoji}</div>
       <div class="med-info">
@@ -259,7 +264,8 @@ function renderMeds() {
 // ── HISTORY ────────────────────────────────────────────────────────────────
 function renderHistory() {
   const el = document.getElementById("historyList");
-  let filtered = [...logs].sort((a,b) => b.ts-a.ts);
+  const profileMedIds = new Set(meds.filter(m => m.profileId === activeProfileId).map(m => m.id));
+let filtered = [...logs].filter(l => profileMedIds.has(l.medId)).sort((a,b) => b.ts-a.ts);
   if (historyFilter !== "all") filtered = filtered.filter(l => l.status===historyFilter);
   if (!filtered.length) {
     el.innerHTML = `<div class="empty"><div class="empty-icon">📂</div><h3>Sin registros</h3><p>El historial aparecerá aquí</p></div>`;
@@ -378,7 +384,7 @@ window.saveMedForm = async () => {
   if (!name) { document.getElementById("medSearch").focus(); return; }
   if (!dose) { showToast("Falta la dosis", "Escribe la dosis", "error"); return; }
   if (!pendingTimes.length) { showToast("Falta el horario", "Agrega al menos una hora", "error"); return; }
-  await saveMed(currentUser.uid, { name, dose, emoji, notes, color, times:[...pendingTimes], active }, editingId);
+  await saveMed(currentUser.uid, { name, dose, emoji, notes, color, times:[...pendingTimes], active, profileId: activeProfileId }, editingId);
   window.closeMedModal();
   showToast(editingId?"Medicamento actualizado":"Medicamento agregado", `${emoji} ${name}`, "success");
 };

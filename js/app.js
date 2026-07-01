@@ -99,7 +99,28 @@ function subscribeAll() {
   unsubLogs     = subscribeLogs(uid,     data => { logs     = data; renderAll(); });
   unsubProfiles = subscribeProfiles(uid, data => { profiles = data; renderProfileBar(); if (activeProfileId) renderProfilePanel(activeProfileId); });
 }
+function subscribeAll() {
+  const uid = currentUser.uid;
+  unsubMeds     = subscribeMeds(uid, data => { meds = data; renderAll(); });
+  unsubLogs     = subscribeLogs(uid, data => { logs = data; renderAll(); });
+  unsubProfiles = subscribeProfiles(uid, async data => {
+    profiles = data;
+    renderProfileBar();
+    if (activeProfileId) renderProfilePanel(activeProfileId);
 
+    // Migración: asignar profileId a meds sin perfil
+    if (data.length > 0) {
+      const firstProfileId = data[0].id;
+      const orphanMeds = meds.filter(m => !m.profileId);
+      for (const med of orphanMeds) {
+        await saveMed(uid, { ...med, profileId: firstProfileId }, med.id);
+      }
+      if (orphanMeds.length > 0) {
+        console.log(`Migrados ${orphanMeds.length} medicamentos al perfil ${firstProfileId}`);
+      }
+    }
+  });
+}
 // ── CLOCK ─────────────────────────────────────────────────────────────────
 startClock(now => {
   if (!currentUser) return;
